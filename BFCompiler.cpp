@@ -6,6 +6,7 @@
 #include <stack>
 #include <string>
 #include <chrono>
+#include <regex>
 using namespace std::chrono;
 
 struct Cell {
@@ -26,7 +27,7 @@ class Tape {
 
     bool debug = false;
     //do_fast disabled allows you to go against the strict brainfuck ruleset of 3
-    bool do_fast = false;
+    bool do_fast = true;
 
     std::string output_store = "";
 
@@ -133,26 +134,79 @@ public:
 
         syntax_check(raw_instructions);
 
-        // Convert to vector of pairs (instruction, moveto index=null)
-        for (char& c : raw_instructions) {
-            // Defaults to 1, as this number will tell how many times to repeat
-            // an instructions. For loops its the moveto index, not a repeat num
+        // Converts the raw string into file instruction set of vector<Cell>
+        coalesce_operands(raw_instructions);
+
+        matching_loop();
+    }
+
+    // Takes in command string, iterates through it moving commands into vector
+    // Handles condensing duplicate operations (e.g. +++), and patter matching, e.g. "[-]"
+    void coalesce_operands(std::string instructions) {
+        const std::string condensed_chars = "+-><";
+
+        //instructions = pattern_match(instructions);
+
+        // Push initial instruction
+        Cell new_cell = { instructions[0], 1 };
+        final_instruction_set.push_back(new_cell);
+
+        for (int i = 1; i < instructions.size(); i++) {
+            // Skip if deleted by pattern matcher
+            if (instructions[i] == '0') {
+                continue;
+            }
+
+            // Condense instr into former instr if match + allowed char
+            if (final_instruction_set.back().instruction == instructions[i]
+                && condensed_chars.find(instructions[i]) != std::string::npos) {
+                final_instruction_set.back().counter++;
+            }
+            else {
+                // Add new instruction
+                // Counter defaults to 1, brackets will overwrite this
+                Cell new_cell = { instructions[i], 1 };
+                final_instruction_set.push_back(new_cell);
+            }
+        }
+    }
+
+    // Takes in string of raw instructions, searches for common patterns
+    // Replaces the first instr of that pattern with a unique key and replaces
+    // the rest of the pattern with a 0
+    std::string pattern_match(std::string instructions) {
+        std::vector<std::pair<std::string, char>> patterns = { {"\\[-\\]", 'z'} };
+        std::vector<int> index_matches;
+        std::regex rx;
+
+        for (auto pattern : patterns) {
+            rx = pattern.first;
+            index_matches.clear();
+
+            // Get length of pattern
+            int pattern_len = 0;
+            for (char c : pattern.first) {
+                if (c != '\\') pattern_len++;
+            }
 
 
-            //std::pair<char, int> instruction_pair(c, 1);
-            //final_instruction_set.push_back(instruction_pair);
+            for (auto it = std::sregex_iterator(instructions.begin(), instructions.end(), rx);
+                it != std::sregex_iterator();
+                ++it)
+            {
+                index_matches.push_back(it->position());
+            }
 
-            //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Add comment
-            Cell cell_init = { c, 1 };
-            final_instruction_set.push_back(cell_init);
+            // Replace the pattern with new key for first char, then '0' for rest
+            for (auto i : index_matches) {
+                instructions[i] = pattern.second;
+                for (int j = 1; j < pattern_len; j++) {
+                    instructions[i + j] = '0';
+                }
+            }
         }
 
-        // Combine repeating operands into one, store the value in pair.second
-        coalesce_operands();
-
-        // Populate moveto index on loops
-        // Do this only after coalescing the increment and decrements though!
-        matching_loop();
+        return instructions;
     }
 
     // Checks for valid character set
@@ -164,30 +218,6 @@ public:
             if (allowed_chars.find(c) == std::string::npos) {
                 std::cout << "Invalid syntax: " << c;
                 exit(0);
-            }
-        }
-    }
-
-    void coalesce_operands() {
-        char former_char = NULL;
-        const std::string allowed_chars = "+-><";
-
-        for (int i = 0; i < final_instruction_set.size(); i++) {
-            // Check if an instruction is same as before
-            // If so, increment the prev instructions counter in pair.second
-            if (final_instruction_set[i].instruction == former_char) {
-                final_instruction_set[i - 1].counter++;
-                final_instruction_set.erase(final_instruction_set.begin() + i);
-                i--;
-            }
-
-            // Only allow it for '+','-','>','<', set NULL if not 
-            // so it won't match for dupes of 
-            if (allowed_chars.find(final_instruction_set[i].instruction) != std::string::npos) {
-                former_char = final_instruction_set[i].instruction;
-            }
-            else {
-                former_char = NULL;
             }
         }
     }
@@ -245,6 +275,9 @@ public:
             command = final_instruction_set[curr_instruction_index];
 
             switch (command.instruction) {
+            case 'z':
+                tape[curr_tape_index] = 0;
+                break;
             case '>':
                 if (do_fast) {
                     curr_tape_index += command.counter;
