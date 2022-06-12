@@ -170,6 +170,19 @@ public:
         }
     }
 
+    int check_balance_traverse(std::string str) {
+        auto next_count = std::count(str.begin(), str.end(), '>');
+        auto prev_count = std::count(str.begin(), str.end(), '<');
+
+        // If not, don't replace anything
+        if (next_count != prev_count) {
+            return 0;
+        }
+
+        // Store this number after 't' to indicate how many spaces away the trade is
+        return next_count;
+    }
+
     // Takes in string of raw instructions, searches for common patterns
     // Replaces the first instr of that pattern with a unique key and replaces
     // the rest of the pattern with a 0
@@ -177,11 +190,33 @@ public:
         // Sometimes the instr will save data into the next removed char instead of 0
         std::vector<std::pair<std::string, char>> patterns = { 
             {"\\[-\\]", 'z'},
-            {"\\[->+\\+<+\\]", 't'} //Simple trade (any number of < or >), must check < and > match for each match
+            //Adds/moves
+            {"\\[->+\\+<+\\]", 't'}, //Simple trade (any number of < or >), must check < and > match for each match
+            {"\\[>+\\+<+-\\]", 't'},
+            //Copy
+            //Needs aux + destination cells
+
+            //Subtraction
+            //[<->-<<<<<<+>>>>>>]
+            //0: Open loop on small number
+            //1: Move to big number and decrement
+            //2: move to small number and decrement it
+            //3: Move to answer tile and increment
+            //4: Move to small number and end loop
+            // Formats: 
+            // Number of < and > are balanced
+            // [<->-<<<<<<+>>>>>>] (big on left of small, answer to left)
+            // [>-<->>>>>>+<<<<<<] (big on right of small, answer to right)
+            {"\\[<+->+-<+\\+>+\\]", 's'},
+            {"\\[   >+-<+   <+\\+>+        \\]", '1'},
+            {"\\[   <+->+   >+\\+<+        \\]", '2'},
+            {"\\[   >+-<+   >+\\+<+        \\]", '3'},
         };
+
         std::vector<int> index_matches;
         std::regex rx;
         int extra_byte;
+        int extra_byte2;
 
         for (auto pattern : patterns) {
             rx = pattern.first;
@@ -189,12 +224,36 @@ public:
 
             auto words_begin = std::sregex_iterator(instructions.begin(), instructions.end(), rx);
             auto words_end = std::sregex_iterator();
+
             for (std::sregex_iterator i = words_begin; i != words_end; ++i) {
                 std::smatch match = *i;
                 std::string match_str = match.str();
 
                 // Set this if need an extra byte of data
                 extra_byte = 0;
+                extra_byte2 = 0;
+
+                // If it's an s, check for matching < and >
+                // [<-> - <<<<<<+>>>>>>]
+                if (pattern.second == 's') {
+                    // Split the match into 2 substrs, before and after the 2nd '-'
+                    // Check for balanced <> in each one
+                    size_t pos = match_str.find("-");
+                    pos = match_str.find("-", pos + 1);
+
+                    std::string half_one = match_str.substr(0, pos);
+                    std::string half_two = match_str.substr(pos, std::string::npos);
+                    //std::cout << match_str << " : " << match_str.substr(0, pos) << std::endl;
+                    //std::cout << match_str << " : " << match_str.substr(pos, std::string::npos) << std::endl;
+                    
+                    //Check halves
+                    // Store this number after 's' to indicate how many to move
+                    extra_byte = check_balance_traverse(half_one);
+                    extra_byte2 = check_balance_traverse(half_two);
+
+                    // Returns 0 if not balanced, don't overwrite anything
+                    if (extra_byte == 0 || extra_byte2 == 0) continue;
+                }
 
                 // If it's a 't' (trade), check for matching < and >
                 if (pattern.second == 't') {
@@ -219,9 +278,14 @@ public:
                 if (extra_byte != 0) {
                     instructions[i->position() + 1] = extra_byte;
                 }
+
+                if (extra_byte2 != 0) {
+                    instructions[i->position() + 2] = extra_byte2;
+                }
             }
         }
 
+        //std::cout << instructions << std::endl;
         return instructions;
     }
 
@@ -289,8 +353,31 @@ public:
         Cell command;
         for (curr_instruction_index; curr_instruction_index < final_instruction_set.size(); curr_instruction_index++) {
             command = final_instruction_set[curr_instruction_index];
+            //std::cout << command.instruction << "\n";
 
             switch (command.instruction) {
+            case 's': {
+                if (tape[curr_tape_index] == 0) break;
+
+                // ONLY HANDLES DEFAULT SCENARIO
+                int small_val = tape[curr_tape_index];
+                tape[curr_tape_index] = 0;
+
+                // Num stored in instruction
+                int move_to_big = final_instruction_set[curr_instruction_index + 1].instruction;
+
+                int big_val = tape[curr_tape_index - +move_to_big];
+                tape[curr_tape_index - +move_to_big] -= +small_val;
+
+                int answer_val = +big_val - +small_val;
+                if (answer_val == 0) answer_val = 1; // Always moves 1 minimum
+
+                int move_to_answer = final_instruction_set[curr_instruction_index + 2].instruction;
+                // Adds to the cell, not replace
+                tape[curr_tape_index - +move_to_answer] += +answer_val;
+
+                break;
+            }
             case 't': {
                 // This takes number of current loc, sets to 0, and adds to the pointed loc
                 // pointed loc is bytes to the right specified by the byte after 't'
