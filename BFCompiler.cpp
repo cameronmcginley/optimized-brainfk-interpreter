@@ -15,7 +15,6 @@ struct Cell {
     int counter;
 };
 
-// Tape is a double linked list, we want to allow moving backwards from "0"
 class Tape {
     // Each instruction is a pair of (instruction, moveto index)
     // the 2nd index only useful for loops
@@ -26,7 +25,7 @@ class Tape {
     int curr_tape_index;
 
     bool debug = false;
-    //do_fast disabled allows you to go against the strict brainfuck ruleset of 3
+    //do_fast disabled allows you to go against the strict brainfuck ruleset of 3000
     bool do_fast = true;
 
     std::string output_store = "";
@@ -145,7 +144,7 @@ public:
     void coalesce_operands(std::string instructions) {
         const std::string condensed_chars = "+-><";
 
-        //instructions = pattern_match(instructions);
+        instructions = pattern_match(instructions);
 
         // Push initial instruction
         Cell new_cell = { instructions[0], 1 };
@@ -175,33 +174,50 @@ public:
     // Replaces the first instr of that pattern with a unique key and replaces
     // the rest of the pattern with a 0
     std::string pattern_match(std::string instructions) {
-        std::vector<std::pair<std::string, char>> patterns = { {"\\[-\\]", 'z'} };
+        // Sometimes the instr will save data into the next removed char instead of 0
+        std::vector<std::pair<std::string, char>> patterns = { 
+            {"\\[-\\]", 'z'},
+            {"\\[->+\\+<+\\]", 't'} //Simple trade (any number of < or >), must check < and > match for each match
+        };
         std::vector<int> index_matches;
         std::regex rx;
+        int extra_byte;
 
         for (auto pattern : patterns) {
             rx = pattern.first;
             index_matches.clear();
 
-            // Get length of pattern
-            int pattern_len = 0;
-            for (char c : pattern.first) {
-                if (c != '\\') pattern_len++;
-            }
+            auto words_begin = std::sregex_iterator(instructions.begin(), instructions.end(), rx);
+            auto words_end = std::sregex_iterator();
+            for (std::sregex_iterator i = words_begin; i != words_end; ++i) {
+                std::smatch match = *i;
+                std::string match_str = match.str();
 
+                // Set this if need an extra byte of data
+                extra_byte = 0;
 
-            for (auto it = std::sregex_iterator(instructions.begin(), instructions.end(), rx);
-                it != std::sregex_iterator();
-                ++it)
-            {
-                index_matches.push_back(it->position());
-            }
+                // If it's a 't' (trade), check for matching < and >
+                if (pattern.second == 't') {
+                    auto next_count = std::count(match_str.begin(), match_str.end(), '>');
+                    auto prev_count = std::count(match_str.begin(), match_str.end(), '<');
 
-            // Replace the pattern with new key for first char, then '0' for rest
-            for (auto i : index_matches) {
-                instructions[i] = pattern.second;
-                for (int j = 1; j < pattern_len; j++) {
-                    instructions[i + j] = '0';
+                    // If not, don't replace anything
+                    if (next_count != prev_count) {
+                        continue;
+                    }
+
+                    // Store this number after 't' to indicate how many spaces away the trade is
+                    extra_byte = next_count;
+                }
+
+                // Replace the word with key and 0s
+                instructions[i->position()] = pattern.second;
+                for (int j = 1; j < match_str.size(); j++) {
+                    instructions[i->position() + j] = '0';
+                }
+
+                if (extra_byte != 0) {
+                    instructions[i->position() + 1] = extra_byte;
                 }
             }
         }
@@ -275,6 +291,17 @@ public:
             command = final_instruction_set[curr_instruction_index];
 
             switch (command.instruction) {
+            case 't': {
+                // This takes number of current loc, sets to 0, and adds to the pointed loc
+                // pointed loc is bytes to the right specified by the byte after 't'
+                int val = tape[curr_tape_index];
+                int moves = final_instruction_set[curr_instruction_index+1].instruction;
+
+                tape[curr_tape_index] = 0;
+                tape[curr_tape_index + +moves] += val;
+
+                break;
+            }
             case 'z':
                 tape[curr_tape_index] = 0;
                 break;
@@ -322,14 +349,16 @@ public:
             case '.':
                 output_byte();
                 break;
+            default:
+                break;
             }
 
             instr_counter++;
         }
 
-        if (debug) {
+        if (true) {
             std::cout << "\nTotal instructions: " << instr_counter << std::endl;
-            print_tape();
+            //print_tape();
         }
     }
 
