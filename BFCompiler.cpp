@@ -49,38 +49,6 @@ public:
             << ": " << log_string << std::endl;
     }
 
-    void loop_open(int i) {
-        //std::cout << i << std::endl;
-        //std::cout << "YO " << execution_data[execution_data[i]] << std::endl;
-        // Check if should enter loop (current not 0)
-        if (tape[curr_tape_index] > 0) {
-            if (debug) log("Loop entered");
-        }
-        // else, continue to after loop, find matching pair
-        else {
-            curr_instruction_index = execution_data2[i];
-            curr_instruction_index--; // Avoid instruction increment in execute()
-
-            if (debug) log("Loop skipped");
-        }
-    }
-
-    void loop_close(int i) {
-        // Check if should jump back (current not 0)
-        //std::cout << "Curr tape index " << curr_tape_index << std::endl;
-        if (tape[curr_tape_index] > 0) {
-            //std::cout << i << std::endl;
-            //std::cout << "YO2 " << execution_data[i] << std::endl;
-            curr_instruction_index = execution_data2[i];
-            curr_instruction_index--; // Avoid instruction increment in execute()
-
-            if (debug) log("Loop repeated");
-        }
-        // else, continue to next command
-        else {
-            if (debug) log("Loop ended");
-        }
-    }
 
     void preprocess(std::string raw_instructions) {
         if (debug) std::cout << "Preprocessing...\n\n";
@@ -96,9 +64,6 @@ public:
 
         // Converts the raw string into file instruction set of vector<Cell>
         coalesce_operands(raw_instructions);
-
-        //matching_loop();
-
 
         //Remove all 0s from execution_str and corresponding execution_data
         for (int i = 0; i < execution_str.size(); i++) {
@@ -156,46 +121,12 @@ public:
             former_instr = instructions[i];
             former_instr_index = i;
 
-            //// Condense instr into former instr if match + allowed char
-            //if (final_instruction_set.back().instruction == instructions[i]
-            //    && condensed_chars.find(instructions[i]) != std::string::npos) {
-            //    final_instruction_set.back().counter++;
-            //}
-            //else {
-            //    // Add new instruction
-            //    // Counter defaults to 1, brackets will overwrite this
-            //    Cell new_cell = { instructions[i], 1 };
-            //    final_instruction_set.push_back(new_cell);
-            //}
         }
 
         execution_str = instructions;
         //std::cout << instructions << std::endl;
 
 
-
-        //// Push initial instruction
-        //Cell new_cell = { instructions[0], 1 };
-        //final_instruction_set.push_back(new_cell);
-
-        //for (int i = 1; i < instructions.size(); i++) {
-        //    // Skip if deleted by pattern matcher
-        //    if (instructions[i] == '0') {
-        //        continue;
-        //    }
-
-        //    // Condense instr into former instr if match + allowed char
-        //    if (final_instruction_set.back().instruction == instructions[i]
-        //        && condensed_chars.find(instructions[i]) != std::string::npos) {
-        //        final_instruction_set.back().counter++;
-        //    }
-        //    else {
-        //        // Add new instruction
-        //        // Counter defaults to 1, brackets will overwrite this
-        //        Cell new_cell = { instructions[i], 1 };
-        //        final_instruction_set.push_back(new_cell);
-        //    }
-        //}
     }
 
     int check_balance_traverse(std::string str) {
@@ -220,7 +151,11 @@ public:
             {"\\[-\\]", 'z'},
             //Adds/moves
             {"\\[->+\\+<+\\]", 't'}, //Simple trade (any number of < or >), must check < and > match for each match
-            {"\\[>+\\+<+-\\]", 't'},
+            //{"\\[>+\\+<+-\\]", ''}, alternate
+
+            {"\\[-<+\\+>+\\]", 'l'}, //Move to left
+            //{"\\[<+\\+>+-\\]", ''}, alternate
+
             //Copy
             //Needs aux + destination cells
 
@@ -236,9 +171,9 @@ public:
             // [<->-<<<<<<+>>>>>>] (big on left of small, answer to left)
             // [>-<->>>>>>+<<<<<<] (big on right of small, answer to right)
             {"\\[<+->+-<+\\+>+\\]", 's'},
-            {"\\[   >+-<+   <+\\+>+        \\]", '1'},
-            {"\\[   <+->+   >+\\+<+        \\]", '2'},
-            {"\\[   >+-<+   >+\\+<+        \\]", '3'},
+            //{"\\[   >+-<+   <+\\+>+        \\]", '1'},
+            //{"\\[   <+->+   >+\\+<+        \\]", '2'},
+            //{"\\[   >+-<+   >+\\+<+        \\]", '3'},
         };
 
         std::vector<int> index_matches;
@@ -283,7 +218,7 @@ public:
                 }
 
                 // If it's a 't' (trade), check for matching < and >
-                if (pattern.second == 't') {
+                if (pattern.second == 't' || pattern.second == 'l') {
                     // Store this number after 't' to indicate how many spaces away the trade is
                     extra_bytes.push_back(check_balance_traverse(match_str));
                 }
@@ -320,7 +255,6 @@ public:
         }
     }
 
-
     void matching_loop() {
         // Scan through program to find matching loops
         std::stack<std::pair<char, int>> st;
@@ -343,89 +277,13 @@ public:
                 int opener_index = st.top().second;
                 int closer_index = i;
 
-
-
-
                 execution_data2[opener_index] = closer_index + 1;
                 execution_data2[closer_index] = opener_index + 1;
 
-
-
-               
-                ////https://stackoverflow.com/questions/40400910/c-convert-int-to-byte4-and-vice-versa
-                //unsigned char* opener_bytes = new unsigned char[4];
-                //opener_bytes[0] = (opener_index >> 24) & 0xFF;
-                //opener_bytes[1] = (opener_index >> 16) & 0xFF;
-                //opener_bytes[2] = (opener_index >> 8) & 0xFF;
-                //opener_bytes[3] = opener_index & 0xFF;
-
-                //unsigned char* closer_bytes = new unsigned char[4];
-                //closer_bytes[0] = (closer_index >> 24) & 0xFF;
-                //closer_bytes[1] = (closer_index >> 16) & 0xFF;
-                //closer_bytes[2] = (closer_index >> 8) & 0xFF;
-                //closer_bytes[3] = closer_index & 0xFF;
-
-                //for (int j = 1; j <= 4; j++) {
-                //    std::cout << opener_bytes[j - 1];
-                //    execution_str.insert(opener_index + j, 1, closer_bytes[j-1]);
-                //    execution_str.insert(closer_index + j, 1, opener_bytes[j-1]);
-                //}
-
-
-
-
-                //Add 4 chars after each bracket indicating its moveto index
-                // For opener:
-                //execution_str.insert(opener_index + 1, "(" + std::to_string(closer_index) + ")");
-                // For closer:
-               // execution_str.insert(closer_index + 1, "(" + std::to_string(opener_index) + ")");
-
-                // Swap to correct moveto indices
-                //final_instruction_set[closer_index].counter = opener_index + 1;
-                //final_instruction_set[opener_index].counter = closer_index + 1;
-
-                // Remove the pair
                 st.pop();
             }
-            //std::cout << std::endl << execution_str;
         }
 
-
-
-
-
-
-
-
-        //// Scan through code, find matching loop sets
-        //std::stack<std::pair<char, int>> st;
-
-        //// Modify the pairs in final_insutrction_set for the loop indices
-        //for (int i = 0; i < final_instruction_set.size(); i++) {
-        //    // Store its own index in its pair
-        //    // When closing is found, swap their indices
-        //    if (final_instruction_set[i].instruction == '[') {
-        //        st.push({ '[', i });
-        //    }
-
-        //    if (final_instruction_set[i].instruction == ']') {
-        //        // Bad code check
-        //        if (st.size() == 0) {
-        //            std::cout << "Error: Missing opening bracket.";
-        //            exit(0);
-        //        }
-
-        //        int opener_index = st.top().second;
-        //        int closer_index = i;
-
-        //        // Swap to correct moveto indices
-        //        final_instruction_set[closer_index].counter = opener_index + 1;
-        //        final_instruction_set[opener_index].counter = closer_index + 1;
-
-        //        // Remove the pair
-        //        st.pop();
-        //    }
-        //}
 
         if (st.size() != 0) {
             std::cout << "Error: Missing closing bracket.";
@@ -446,6 +304,8 @@ public:
         std::cout << "Executing...\n";
 
         long long int instr_counter = 0;
+
+        std::cout << execution_string2 << "\n\n";
 
         for (curr_instruction_index; curr_instruction_index < execution_string2.size(); curr_instruction_index++) {
             
@@ -493,6 +353,18 @@ public:
 
                 break;
             }
+            case 'l': {
+                // Exact same as t, but move left
+                int val = tape[curr_tape_index];
+                int moves = execution_string2[curr_instruction_index + 1];
+
+                tape[curr_tape_index] = 0;
+                tape[curr_tape_index - +moves] += val;
+
+                curr_instruction_index++;
+
+                break;
+            }
             case 'z':
                 tape[curr_tape_index] = 0;
                 break;
@@ -521,12 +393,21 @@ public:
                 tape[curr_tape_index] = n;
                 break;
             }
-            case '[':
-                loop_open(curr_instruction_index);
+            case '[': {
+                //loop_open(curr_instruction_index);
+                if (tape[curr_tape_index] == 0) {
+                    curr_instruction_index = execution_data2[curr_instruction_index];
+                    curr_instruction_index--; // Avoid instruction increment
+                }
                 break;
+            }
             case ']': {
                 //std::cout << "Here";
-                loop_close(curr_instruction_index);
+                //loop_close(curr_instruction_index);
+                if (tape[curr_tape_index] > 0) {
+                    curr_instruction_index = execution_data2[curr_instruction_index];
+                    curr_instruction_index--; // Avoid instruction increment
+                }
                 break; 
             }
             case '.':
@@ -535,96 +416,15 @@ public:
             default:
                 break;
             }
+
             instr_counter++;
         }
-
-
-
-        //Cell command;
-        //for (curr_instruction_index; curr_instruction_index < final_instruction_set.size(); curr_instruction_index++) {
-            //command = final_instruction_set[curr_instruction_index];
-            //std::cout << command.instruction << "\n";
-
-            //switch (command.instruction) {
-            //case 's': {
-            //    if (tape[curr_tape_index] == 0) break;
-
-            //    // ONLY HANDLES DEFAULT SCENARIO
-            //    int small_val = tape[curr_tape_index];
-            //    tape[curr_tape_index] = 0;
-
-            //    // Num stored in instruction
-            //    int move_to_big = final_instruction_set[curr_instruction_index + 1].instruction;
-
-            //    int big_val = tape[curr_tape_index - +move_to_big];
-            //    tape[curr_tape_index - +move_to_big] -= +small_val;
-
-            //    int answer_val = +big_val - +small_val;
-            //    if (answer_val == 0) answer_val = 1; // Always moves 1 minimum
-
-            //    int move_to_answer = final_instruction_set[curr_instruction_index + 2].instruction;
-            //    // Adds to the cell, not replace
-            //    tape[curr_tape_index - +move_to_answer] += +answer_val;
-
-            //    break;
-            //}
-            //case 't': {
-            //    // This takes number of current loc, sets to 0, and adds to the pointed loc
-            //    // pointed loc is bytes to the right specified by the byte after 't'
-            //    int val = tape[curr_tape_index];
-            //    int moves = final_instruction_set[curr_instruction_index + 1].instruction;
-
-            //    tape[curr_tape_index] = 0;
-            //    tape[curr_tape_index + +moves] += val;
-
-            //    break;
-            //}
-            //case 'z':
-            //    tape[curr_tape_index] = 0;
-            //    break;
-            //case '>':
-            //    curr_tape_index += command.counter;
-            //    break;
-            //case '<':
-            //    curr_tape_index -= command.counter;
-            //    break;
-            //case '+':
-            //    tape[curr_tape_index] += command.counter;
-            //    break;
-            //case '-':
-            //    tape[curr_tape_index] -= command.counter;
-            //    break;
-            //case ',': {
-            //    int n;
-            //    std::cout << "Input: ";
-            //    std::cin >> n;
-            //    std::cout << std::endl;
-            //    tape[curr_tape_index] = n;
-            //    break;
-            //}
-            //case '[':
-            //    loop_open();
-            //    break;
-            //case ']':
-            //    loop_close();
-            //    break;
-            //case '.':
-            //    std::cout << tape[curr_tape_index];
-            //    break;
-            //default:
-            //    break;
-            //}
-
            
 
         if (true) {
             std::cout << "\nTotal instructions: " << instr_counter << std::endl;
             //print_tape();
         }
-    }
-
-    void print_info() {
-
     }
 
     void print_tape() {
