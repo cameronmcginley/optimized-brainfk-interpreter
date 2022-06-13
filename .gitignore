@@ -1,3 +1,5 @@
 *
 !.gitignore
-!BFCompiler.cpp
+!Interpreter.h
+!Interpreter.cpp
+!main.cpp
