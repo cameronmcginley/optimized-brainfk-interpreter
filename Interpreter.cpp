@@ -3,25 +3,61 @@
 #include <stack>
 #include <iostream>
 #include <regex>
+#include <chrono>
+#include <ctime>
 
 Interpreter::Interpreter() : curr_instruction_index(0), curr_tape_index(0) {
     tape.resize(3000);
 }
 
+void Interpreter::log(std::string log_str) {
+    std::cout << log_str << std::endl;
+}
+
+void Interpreter::log(int instr_num, char instr, int instr_data, int cell_num, int cell_data) {
+    std::cout << "Instr #" << instr_num 
+        << ": Instr= " << instr << " "
+        << ": Instr Data=" << instr_data
+        << ": Cell #" << cell_num
+        << ": Cell Data=" << cell_data << std::endl;
+}
+
+void Interpreter::log(std::vector<int> log_vec) {
+    std::cout << ": ";
+    for (auto item : log_vec) {
+        std::cout << item << " ";
+    }
+    std::cout << std::endl;
+}
+
+void Interpreter::log(std::string log_str, std::vector<int> log_vec) {
+    std::cout << "Instruction : Data" << std::endl;
+    for (int i = 0; i < log_str.size(); i++) {
+        std::cout << log_str[i] << " : " << log_vec[i] << std::endl;
+    }
+}
+
 void Interpreter::preprocess(std::string raw_instructions) {
+    if (debug) log("Preprocessing...");
+
     // Takes in the raw instruction set
     // Remove all whitespace
     raw_instructions.erase(std::remove_if(raw_instructions.begin(), raw_instructions.end(), ::isspace), raw_instructions.end());
+    if (debug) log("Whitespace removed!");
 
     execution_data.resize(30000);
     execution_data2.reserve(30000);
 
     //syntax_check(raw_instructions);
 
+    raw_instructions = pattern_match(raw_instructions);
+
     // Converts the raw string into file instruction set of vector<Cell>
     coalesce_operands(raw_instructions);
 
     //Remove all 0s from execution_str and corresponding execution_data
+    if (debug) log("Building new instruction string and data vector...");
+
     for (int i = 0; i < execution_str.size(); i++) {
         if (execution_str[i] != '0') {
             execution_string2 += execution_str[i];
@@ -31,19 +67,16 @@ void Interpreter::preprocess(std::string raw_instructions) {
 
     matching_loop();
 
-    //for (int i = 0; i < 150; i++) {
-    //    std::cout << i << " : " 
-    //        <<  execution_string2[i] << " : "
-    //        << execution_data2[i] << " : "
-    //        << execution_data[i]
-    //        << std::endl;
-    //}
-
+    if (debug) log("Build complete!");
+    if (debug) log("\nInstructions following condensing (w/o data vector):");
+    if (debug) log(execution_string2);
 }
 
 // Checks for valid character set
 // If invalid found, throw error and kill program
 void Interpreter::syntax_check(std::string raw_instructions) {
+    if (debug) log("Checking syntax...");
+
     const std::string allowed_chars = "+-><.,[]";
 
     for (char c : raw_instructions) {
@@ -52,17 +85,17 @@ void Interpreter::syntax_check(std::string raw_instructions) {
             exit(0);
         }
     }
+
+    if (debug) log("Syntax check complete!");
 }
 
 // Takes in command string, iterates through it moving commands into vector
 // Handles condensing duplicate operations (e.g. +++), and patter matching, e.g. "[-]"
 // Will error if dupes > 255 (1 byte)
 void Interpreter::coalesce_operands(std::string instructions) {
-    const std::string condensed_chars = "+-><";
-    //std::cout << "\nCOALESCING..." << std::endl;
+    if (debug) log("Condensing instructions...");
 
-    instructions = pattern_match(instructions);
-    //std::cout << instructions;
+    const std::string condensed_chars = "+-><";
 
     int former_instr_index = NULL;
     char former_instr = NULL;
@@ -95,10 +128,12 @@ void Interpreter::coalesce_operands(std::string instructions) {
     execution_str = instructions;
     //std::cout << instructions << std::endl;
 
-
+    if (debug) log("Condensing complete!");
 }
 
 int Interpreter::check_balance_traverse(std::string str) {
+    if (debug) log("Checking '<>' match...");
+
     auto next_count = std::count(str.begin(), str.end(), '>');
     auto prev_count = std::count(str.begin(), str.end(), '<');
 
@@ -109,12 +144,16 @@ int Interpreter::check_balance_traverse(std::string str) {
 
     // Store this number after 't' to indicate how many spaces away the trade is
     return next_count;
+
+    if (debug) log("Match confirmed!");
 }
 
 // Takes in string of raw instructions, searches for common patterns
 // Replaces the first instr of that pattern with a unique key and replaces
 // the rest of the pattern with a 0
 std::string Interpreter::pattern_match(std::string instructions) {
+    if (debug) log("Beginning pattern matching...");
+
     // Sometimes the instr will save data into the next removed char instead of 0
     std::vector<std::pair<std::string, char>> patterns = {
         {"\\[-\\]", 'z'},
@@ -173,6 +212,8 @@ std::string Interpreter::pattern_match(std::string instructions) {
             std::string match_str = match.str();
             extra_bytes.clear();
 
+            if (debug) log("Pattern found: " + match_str);
+
             // If it's an s, check for matching < and >
             // [<-> - <<<<<<+>>>>>>]
             if (pattern.second == 's') {
@@ -223,10 +264,13 @@ std::string Interpreter::pattern_match(std::string instructions) {
     }
 
     //std::cout << instructions << std::endl;
+    if (debug) log("Pattern matching complete!");
     return instructions;
 }
 
 void Interpreter::matching_loop() {
+    if (debug) log("Matching bracket indices...");
+
     // Scan through program to find matching loops
     std::stack<std::pair<char, int>> st;
 
@@ -260,22 +304,23 @@ void Interpreter::matching_loop() {
         std::cout << "Error: Missing closing bracket.";
         exit(0);
     }
+
+    if (debug) log("Bracket pairs matched!");
 }
 
 void Interpreter::execute() {
-    //std::cout << "\n\n" << execution_string2 << "\n\n";
-    std::cout << "Executing...\n";
+    if (debug) log("\nExecuting...\nFinal instructions and data:");
+    if (debug) log(execution_string2, execution_data2);
+    if (debug) log("\n");
 
     long long int instr_counter = 0;
 
-    std::cout << execution_string2 << "\n\n";
-
     for (curr_instruction_index; curr_instruction_index < execution_string2.size(); curr_instruction_index++) {
-
-        //std::cout << curr_instruction_index << " : "
-        //    << execution_string2[curr_instruction_index] << " : "
-        //    << execution_data2[curr_instruction_index] << " : "
-        //    << +tape[curr_tape_index] << std::endl;
+        if (debug) log(curr_instruction_index,
+            execution_string2[curr_instruction_index],
+            execution_data2[curr_instruction_index],
+            curr_tape_index,
+            +tape[curr_tape_index]);
 
         switch (execution_string2[curr_instruction_index]) {
         case 's': {
@@ -401,7 +446,12 @@ void Interpreter::execute() {
             break;
         }
         case '.':
-            std::cout << tape[curr_tape_index];
+            if (debug) {
+                debug_store_output += tape[curr_tape_index];
+            }
+            else {
+                std::cout << tape[curr_tape_index];
+            }
             break;
         default:
             break;
@@ -410,9 +460,8 @@ void Interpreter::execute() {
         instr_counter++;
     }
 
+    // The output is stored if debug is on, print after execution
+    if (debug) std::cout << std::endl << debug_store_output << std::endl;
 
-    if (true) {
-        std::cout << "\nTotal instructions: " << instr_counter << std::endl;
-        //print_tape();
-    }
+    std::cout << "\nTotal instructions: " << instr_counter << std::endl;
 }

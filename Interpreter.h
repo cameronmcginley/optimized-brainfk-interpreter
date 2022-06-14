@@ -18,8 +18,20 @@ class Interpreter {
 
     int curr_instruction_index;
 
+    bool debug = true;
+
+    std::string debug_store_output = "";
+
 public:
     Interpreter();
+
+    //Log overloaded for:
+    // Instruction log: ""
+    // 
+    void log(std::string log_str);
+    void log(int instr_num, char instr, int instr_data, int cell_num, int cell_data);
+    void log(std::vector<int> log_vec);
+    void log(std::string log_str, std::vector<int> log_vec);
 
     // Begins the preprocessing for the raw instruction string
     // Stores the final instruction feed and respective data bytes
