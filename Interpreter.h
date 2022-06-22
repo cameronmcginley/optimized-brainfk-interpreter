@@ -35,6 +35,9 @@ public:
     // Instruction string with data vector
     void log(std::string log_str, std::vector<int> log_vec);
 
+    // Takes in a filepath, returns it as a string
+    std::string read_bf_file(std::string filename);
+
     // Begins the preprocessing for the raw instruction string
     // Stores the final instruction feed and respective data bytes
     // in execution_string2 and execution_data2 respectively

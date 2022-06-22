@@ -3,8 +3,17 @@
 #include <stack>
 #include <iostream>
 #include <regex>
+//import std.regex;
 #include <chrono>
 #include <ctime>
+#include <fstream>
+//#include <map>
+//#include <any>
+//#include <sstream>
+
+#include <filesystem>
+//import std.filesystem;
+namespace fs = std::filesystem;
 
 Interpreter::Interpreter() : curr_instruction_index(0), curr_tape_index(0) {
     tape.resize(3000);
@@ -35,6 +44,15 @@ void Interpreter::log(std::string log_str, std::vector<int> log_vec) {
     for (int i = 0; i < log_str.size(); i++) {
         std::cout << log_str[i] << " : " << log_vec[i] << std::endl;
     }
+}
+
+std::string Interpreter::read_bf_file(std::string filename) {
+    // Maybe run file checks in the future
+    std::ifstream ifs(filename);
+    std::string content((std::istreambuf_iterator<char>(ifs)),
+        (std::istreambuf_iterator<char>()));
+
+    return content;
 }
 
 void Interpreter::preprocess(std::string raw_instructions) {
