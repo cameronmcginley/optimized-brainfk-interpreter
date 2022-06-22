@@ -100,7 +100,7 @@ void Interpreter::coalesce_operands(std::string instructions) {
     int former_instr_index = NULL;
     char former_instr = NULL;
 
-    // Coalsce operations into same string, replace duplicates with '0'
+    // Coalesce operations into same string, replace duplicates with '0'
     // Except for first duplciate, replace with the counter
     for (int i = 0; i < instructions.size(); i++) {
         // Skip if deleted by pattern matcher
@@ -151,26 +151,31 @@ int Interpreter::check_balance_traverse(std::string str) {
 // Takes in string of raw instructions, searches for common patterns
 // Replaces the first instr of that pattern with a unique key and replaces
 // the rest of the pattern with a 0
+// Patterns: https://esolangs.org/wiki/Brainfuck_algorithms#if_.28x.29_.7B_code_.7D
+// https://gist.github.com/roachhd/dce54bec8ba55fb17d3a
+// https://en.wikipedia.org/wiki/Brainfuck
+// Mandelbrot: https://github.com/erikdubbelboer/brainfuck-jit/blob/master/mandelbrot.bf
 std::string Interpreter::pattern_match(std::string instructions) {
     if (debug) log("Beginning pattern matching...");
 
     // Sometimes the instr will save data into the next removed char instead of 0
     std::vector<std::pair<std::string, char>> patterns = {
+        //Zero out current cell
         {"\\[-\\]", 'z'},
-        //Adds/moves
-        //[->>>+<<<]
-        {"\\[->+\\+<+\\]", 't'}, //Simple trade (any number of < or >), must check < and > match for each match
-        //{"\\[>+\\+<+-\\]", ''}, alternate
 
-        //[-<<<+>>>]
-        {"\\[-<+\\+>+\\]", 'l'}, //Move to left
-        //{"\\[<+\\+>+-\\]", ''}, alternate
-
-        //Copy
-        //Needs aux + destination cells
+        //Adds/moves to target cell (current becomes 0)
+        //To right:
+        //ex: [->>>+<<<]
+        {"\\[->+\\+<+\\]", 't'},
+        //{"\\[>+\\+<+-\\]", ''},
+        //To left:
+        //ex: [-<<<+>>>]
+        {"\\[-<+\\+>+\\]", 'l'},
+        //{"\\[<+\\+>+-\\]", ''},
 
         //Subtraction with answer cell
-        //[<->-<<<<<<+>>>>>>]
+        //ex: [<->-<<<<<<+>>>>>>]
+        //Instruction steps:
         //0: Open loop on small number
         //1: Move to big number and decrement
         //2: move to small number and decrement it
@@ -185,12 +190,8 @@ std::string Interpreter::pattern_match(std::string instructions) {
         //{"\\[   <+->+   >+\\+<+        \\]", '2'},
         //{"\\[   >+-<+   >+\\+<+        \\]", '3'},
 
-
-
-
-
-        // Subtraction no answer cell
-        //[-<<<->>>]
+        //Subtraction no answer cell
+        //ex: [-<<<->>>]
         {"\\[-<+->+\\]", 'm'},
         //[->>>-<<<]
         {"\\[->+-<+\\]", 'n'},

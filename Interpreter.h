@@ -18,19 +18,21 @@ class Interpreter {
 
     int curr_instruction_index;
 
-    bool debug = true;
+    bool debug = false;
 
     std::string debug_store_output = "";
 
 public:
     Interpreter();
 
-    //Log overloaded for:
-    // Instruction log: ""
-    // 
+    // Log overloaded for different scenarios
+    // String
     void log(std::string log_str);
+    // All instruction data
     void log(int instr_num, char instr, int instr_data, int cell_num, int cell_data);
+    // Vector
     void log(std::vector<int> log_vec);
+    // Instruction string with data vector
     void log(std::string log_str, std::vector<int> log_vec);
 
     // Begins the preprocessing for the raw instruction string
