@@ -26,4 +26,5 @@ In this case, there are two patterns: 'z' and 's'. 'z' stores no extra informati
 
 ## Compiling and Running
 `g++ *.cpp -O3 -std=c++20 -o bf`
+
 `./bf helloworld.bf`
