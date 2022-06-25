@@ -1,4 +1,4 @@
-# Optimized Brainfuck Interpreter
+# Optimized Brainf**k Interpreter
 This interpreter is a simple project on how the brainfuck programming language (https://esolangs.org/wiki/Brainfuck) can be optimized through the interpreter. The primary optimizations are condensing instructions and peephole optimization through pattern matching.
 
 Condensing instructions just means pushing multiple repetitive instructions into one instruction. For example, "+++" is interpreted as just "+", but adds 3 instead of 1 and repeating itself.
