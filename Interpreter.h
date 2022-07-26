@@ -24,49 +24,108 @@ class Interpreter {
   Interpreter();
 
   // Log overloaded for different scenarios
-  // String
+  /**
+   * Print a string.
+   *
+   * @param log_str String.
+   */
   void debug_log(std::string log_str);
-  // All instruction data
+
+  /**
+   * Log all data for an instruction.
+   *
+   * @param instr_num Index of instruction.
+   * @param instr Instruction char
+   * @param instr_data Parallel data for the instr.
+   * @param cell_num Current index of output tape.
+   * @param cell_data Current data at output tape index.
+   */
   void debug_log(int instr_num, char instr, int instr_data, int cell_num,
                  int cell_data);
-  // Vector
+
+  /**
+   * Log a vector<int>
+   *
+   * @param log_vec Vector of int.
+   */
   void debug_log(std::vector<int> log_vec);
-  // Instruction string with data vector
+
+  /**
+   * Log a parallel string and vector<int>
+   *
+   * @param log_str String.
+   * @param log_vec Vector of int.
+   */
   void debug_log(std::string log_str, std::vector<int> log_vec);
 
-  // Takes in a filepath, returns it as a string
+  /**
+   * Take in filepath, return string read in.
+   *
+   * @param filename Brainfuck file to read from.
+   * @return string given by specified file.
+   */
   std::string read_bf_file(std::string filename);
 
-  // Begins the preprocessing for the raw instruction string
-  // Stores the final instruction feed and respective data bytes
-  // in execution_string2 and execution_data2 respectively
+  /**
+   * Clean instructions, handle pattern matching and condensing instrs.
+   *
+   * Final outputs stored in final_execution_string and
+   * final_execution_data.
+   *
+   * @param values Container whose values are summed.
+   * @return sum of `values`, or 0.0 if `values` is empty.
+   */
   void preprocess(std::string raw_instructions);
 
-  // Handled by preprocess()
-  // Throws error if bad syntax (wrong char set, non closing loops)
+  /**
+   * Check whether syntax is valid.
+   *
+   * @param instructions Raw instruction string.
+   */
   void syntax_check(std::string raw_instructions);
 
-  // Handled by preprocess()
-  // Iterates through the string of instructions, detects duplicates
-  // removes them, and adds the count-1 to a parallel vector
+  /**
+   * Locate duplicate instructions, condenses them.
+   *
+   * Number of duplicates stored in the parallel data vector.
+   * Handled by preprocess()
+   *
+   * @param instructions String of instructions.
+   */
   void coalesce_operands(std::string instructions);
 
-  // Handled by pattern_match()
-  // Simply checks whether "<" and ">" are balanced in a str
-  // Returns the num occurences if so, else returns 0
+  /**
+   * Check whether "<" and ">" are balanced.
+   *
+   * Handled by pattern_match().
+   *
+   * @param str String to check against.
+   * @return number of "<" or ">" counted.
+   */
   int check_balance_traverse(std::string str);
 
-  // Handled by coalesce_operands()
-  // Takes in (uncondensed) instruction string, regexes various patterns
-  // and replaces them with a new instruction key, returns modified string
+  /**
+   * Pattern match against instructions.
+   *
+   * Place pattern token and necessary data in place. Function
+   * handled by coalesce_operands().
+   *
+   * @param instructions Uncondensed string of instructions to match on.
+   * @return string of instructions with replaced patterns.
+   */
   std::string pattern_match(std::string instructions);
 
-  // Handled by preprocess()
-  // Runs on the final condensed instruction str, matches loop brackets
-  // Stores index+1 of a bracket's pair, in the parallel data vector
+  /**
+   * Get and storice indices of matching loop brackets.
+   *
+   * Handled be preprocess(). Runs against the final condensed
+   * instruction string.
+   */
   void matching_loop();
 
-  // Interprets the final string of instructions
+  /**
+   * Interprets the final string of instructions
+   */
   void execute();
 };
 
