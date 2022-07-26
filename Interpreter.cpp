@@ -11,29 +11,35 @@ Interpreter::Interpreter() : curr_instruction_index(0), curr_tape_index(0) {
   tape.resize(3000);
 }
 
-void Interpreter::log(std::string log_str) {
-  std::cout << log_str << std::endl;
+void Interpreter::debug_log(std::string log_str) {
+  if (debug) std::cout << log_str << std::endl;
 }
 
-void Interpreter::log(int instr_num, char instr, int instr_data, int cell_num,
-                      int cell_data) {
-  std::cout << "Instr #" << instr_num << ": Instr= " << instr << " "
-            << ": Instr Data=" << instr_data << ": Cell #" << cell_num
-            << ": Cell Data=" << cell_data << std::endl;
-}
-
-void Interpreter::log(std::vector<int> log_vec) {
-  std::cout << ": ";
-  for (auto item : log_vec) {
-    std::cout << item << " ";
+void Interpreter::debug_log(int instr_num, char instr, int instr_data,
+                            int cell_num, int cell_data) {
+  if (debug) {
+    std::cout << "Instr #" << instr_num << ": Instr= " << instr << " "
+              << ": Instr Data=" << instr_data << ": Cell #" << cell_num
+              << ": Cell Data=" << cell_data << std::endl;
   }
-  std::cout << std::endl;
 }
 
-void Interpreter::log(std::string log_str, std::vector<int> log_vec) {
-  std::cout << "Instruction : Data" << std::endl;
-  for (int i = 0; i < log_str.size(); i++) {
-    std::cout << log_str[i] << " : " << log_vec[i] << std::endl;
+void Interpreter::debug_log(std::vector<int> log_vec) {
+  if (debug) {
+    std::cout << ": ";
+    for (auto item : log_vec) {
+      std::cout << item << " ";
+    }
+    std::cout << std::endl;
+  }
+}
+
+void Interpreter::debug_log(std::string log_str, std::vector<int> log_vec) {
+  if (debug) {
+    std::cout << "Instruction : Data" << std::endl;
+    for (int i = 0; i < log_str.size(); i++) {
+      std::cout << log_str[i] << " : " << log_vec[i] << std::endl;
+    }
   }
 }
 
@@ -47,17 +53,17 @@ std::string Interpreter::read_bf_file(std::string filename) {
 }
 
 void Interpreter::preprocess(std::string raw_instructions) {
-  if (debug) log("Preprocessing...");
+  debug_log("Preprocessing...");
 
   // Takes in the raw instruction set
   // Remove all whitespace
   raw_instructions.erase(std::remove_if(raw_instructions.begin(),
                                         raw_instructions.end(), ::isspace),
                          raw_instructions.end());
-  if (debug) log("Whitespace removed!");
+  debug_log("Whitespace removed!");
 
-  execution_data.resize(30000);
-  execution_data2.reserve(30000);
+  temp_execution_data.resize(30000);
+  final_execution_data.reserve(30000);
 
   // syntax_check(raw_instructions);
 
@@ -66,27 +72,28 @@ void Interpreter::preprocess(std::string raw_instructions) {
   // Converts the raw string into file instruction set of vector<Cell>
   coalesce_operands(raw_instructions);
 
-  // Remove all 0s from execution_str and corresponding execution_data
-  if (debug) log("Building new instruction string and data vector...");
+  // Remove all 0s from temp_execution_string and corresponding
+  // temp_execution_data
+  debug_log("Building new instruction string and data vector...");
 
-  for (int i = 0; i < execution_str.size(); i++) {
-    if (execution_str[i] != '0') {
-      execution_string2 += execution_str[i];
-      execution_data2.push_back(execution_data[i]);
+  for (int i = 0; i < temp_execution_string.size(); i++) {
+    if (temp_execution_string[i] != '0') {
+      final_execution_string += temp_execution_string[i];
+      final_execution_data.push_back(temp_execution_data[i]);
     }
   }
 
   matching_loop();
 
-  if (debug) log("Build complete!");
-  if (debug) log("\nInstructions following condensing (w/o data vector):");
-  if (debug) log(execution_string2);
+  debug_log("Build complete!");
+  debug_log("\nInstructions following condensing (w/o data vector):");
+  debug_log(final_execution_string);
 }
 
 // Checks for valid character set
 // If invalid found, throw error and kill program
 void Interpreter::syntax_check(std::string raw_instructions) {
-  if (debug) log("Checking syntax...");
+  debug_log("Checking syntax...");
 
   const std::string allowed_chars = "+-><.,[]";
 
@@ -97,14 +104,14 @@ void Interpreter::syntax_check(std::string raw_instructions) {
     }
   }
 
-  if (debug) log("Syntax check complete!");
+  debug_log("Syntax check complete!");
 }
 
 // Takes in command string, iterates through it moving commands into vector
 // Handles condensing duplicate operations (e.g. +++), and patter matching, e.g.
 // "[-]" Will error if dupes > 255 (1 byte)
 void Interpreter::coalesce_operands(std::string instructions) {
-  if (debug) log("Condensing instructions...");
+  debug_log("Condensing instructions...");
 
   const std::string condensed_chars = "+-><";
 
@@ -124,7 +131,7 @@ void Interpreter::coalesce_operands(std::string instructions) {
       if (condensed_chars.find(instructions[i]) != std::string::npos) {
         // Set self to 0, then add 1 to matching execution data
         instructions[i] = '0';
-        execution_data[former_instr_index]++;
+        temp_execution_data[former_instr_index]++;
 
         continue;
       }
@@ -135,13 +142,13 @@ void Interpreter::coalesce_operands(std::string instructions) {
     former_instr_index = i;
   }
 
-  execution_str = instructions;
+  temp_execution_string = instructions;
 
-  if (debug) log("Condensing complete!");
+  debug_log("Condensing complete!");
 }
 
 int Interpreter::check_balance_traverse(std::string str) {
-  if (debug) log("Checking '<>' match...");
+  debug_log("Checking '<>' match...");
 
   auto next_count = std::count(str.begin(), str.end(), '>');
   auto prev_count = std::count(str.begin(), str.end(), '<');
@@ -154,7 +161,7 @@ int Interpreter::check_balance_traverse(std::string str) {
   // Store this number after 't' to indicate how many spaces away the trade is
   return next_count;
 
-  if (debug) log("Match confirmed!");
+  debug_log("Match confirmed!");
 }
 
 // Takes in string of raw instructions, searches for common patterns
@@ -167,7 +174,7 @@ int Interpreter::check_balance_traverse(std::string str) {
 // Mandelbrot:
 // https://github.com/erikdubbelboer/brainfuck-jit/blob/master/mandelbrot.bf
 std::string Interpreter::pattern_match(std::string instructions) {
-  if (debug) log("Beginning pattern matching...");
+  debug_log("Beginning pattern matching...");
 
   // Sometimes the instr will save data into the next removed char instead of 0
   std::vector<std::pair<std::string, char>> patterns = {
@@ -225,7 +232,7 @@ std::string Interpreter::pattern_match(std::string instructions) {
       std::string match_str = match.str();
       extra_bytes.clear();
 
-      if (debug) log("Pattern found: " + match_str);
+      debug_log("Pattern found: " + match_str);
 
       // If it's an s, check for matching < and >
       // [<-> - <<<<<<+>>>>>>]
@@ -273,24 +280,24 @@ std::string Interpreter::pattern_match(std::string instructions) {
     }
   }
 
-  if (debug) log("Pattern matching complete!");
+  debug_log("Pattern matching complete!");
   return instructions;
 }
 
 void Interpreter::matching_loop() {
-  if (debug) log("Matching bracket indices...");
+  debug_log("Matching bracket indices...");
 
   // Scan through program to find matching loops
   std::stack<std::pair<char, int>> st;
 
-  for (int i = 0; i < execution_string2.size(); i++) {
+  for (int i = 0; i < final_execution_string.size(); i++) {
     // Store its own index in its pair
     // When closing is found, swap their indices
-    if (execution_string2[i] == '[') {
+    if (final_execution_string[i] == '[') {
       st.push({'[', i});
     }
 
-    if (execution_string2[i] == ']') {
+    if (final_execution_string[i] == ']') {
       // Bad code check
       if (st.size() == 0) {
         std::cout << "Error: Missing opening bracket.";
@@ -300,8 +307,8 @@ void Interpreter::matching_loop() {
       int opener_index = st.top().second;
       int closer_index = i;
 
-      execution_data2[opener_index] = closer_index + 1;
-      execution_data2[closer_index] = opener_index + 1;
+      final_execution_data[opener_index] = closer_index + 1;
+      final_execution_data[closer_index] = opener_index + 1;
 
       st.pop();
     }
@@ -312,25 +319,25 @@ void Interpreter::matching_loop() {
     exit(0);
   }
 
-  if (debug) log("Bracket pairs matched!");
+  debug_log("Bracket pairs matched!");
 }
 
 void Interpreter::execute() {
-  if (debug) log("\nExecuting...\nFinal instructions and data:");
-  if (debug) log(execution_string2, execution_data2);
-  if (debug) log("\n");
+  debug_log("\nExecuting...\nFinal instructions and data:");
+  debug_log(final_execution_string, final_execution_data);
+  debug_log("\n");
 
   long long int instr_counter = 0;
 
   for (curr_instruction_index;
-       curr_instruction_index < execution_string2.size();
+       curr_instruction_index < final_execution_string.size();
        curr_instruction_index++) {
-    if (debug)
-      log(curr_instruction_index, execution_string2[curr_instruction_index],
-          execution_data2[curr_instruction_index], curr_tape_index,
-          +tape[curr_tape_index]);
+    debug_log(curr_instruction_index,
+              final_execution_string[curr_instruction_index],
+              final_execution_data[curr_instruction_index], curr_tape_index,
+              +tape[curr_tape_index]);
 
-    switch (execution_string2[curr_instruction_index]) {
+    switch (final_execution_string[curr_instruction_index]) {
       case 's': {
         if (tape[curr_tape_index] == 0) break;
 
@@ -339,7 +346,7 @@ void Interpreter::execute() {
         tape[curr_tape_index] = 0;
 
         // Num stored in instruction
-        int move_to_big = execution_string2[curr_instruction_index + 1];
+        int move_to_big = final_execution_string[curr_instruction_index + 1];
 
         int big_val = tape[curr_tape_index - +move_to_big];
         tape[curr_tape_index - +move_to_big] -= +small_val;
@@ -347,7 +354,7 @@ void Interpreter::execute() {
         int answer_val = +big_val - +small_val;
         if (answer_val == 0) answer_val = 1;  // Always moves 1 minimum
 
-        int move_to_answer = execution_string2[curr_instruction_index + 2];
+        int move_to_answer = final_execution_string[curr_instruction_index + 2];
         // Adds to the cell, not replace
         tape[curr_tape_index - +move_to_answer] += +answer_val;
 
@@ -360,7 +367,7 @@ void Interpreter::execute() {
         // This takes number of current loc, sets to 0, and adds to the pointed
         // loc pointed loc is bytes to the right specified by the byte after 't'
         int val = tape[curr_tape_index];
-        int moves = execution_string2[curr_instruction_index + 1];
+        int moves = final_execution_string[curr_instruction_index + 1];
 
         tape[curr_tape_index] = 0;
         tape[curr_tape_index + +moves] += val;
@@ -372,7 +379,7 @@ void Interpreter::execute() {
       case 'l': {
         // Exact same as t, but move left
         int val = tape[curr_tape_index];
-        int moves = execution_string2[curr_instruction_index + 1];
+        int moves = final_execution_string[curr_instruction_index + 1];
 
         tape[curr_tape_index] = 0;
         tape[curr_tape_index - +moves] += val;
@@ -387,7 +394,7 @@ void Interpreter::execute() {
       case 'm': {
         // m moves to the left
         int val = tape[curr_tape_index];
-        int moves = execution_string2[curr_instruction_index + 1];
+        int moves = final_execution_string[curr_instruction_index + 1];
 
         tape[curr_tape_index] = 0;
         tape[curr_tape_index - +moves] -= val;
@@ -399,7 +406,7 @@ void Interpreter::execute() {
       case 'n': {
         // same as m, but moves to right
         int val = tape[curr_tape_index];
-        int moves = execution_string2[curr_instruction_index + 1];
+        int moves = final_execution_string[curr_instruction_index + 1];
 
         tape[curr_tape_index] = 0;
         tape[curr_tape_index + +moves] -= val;
@@ -409,20 +416,22 @@ void Interpreter::execute() {
         break;
       }
       case '>':
-        curr_tape_index += execution_data2[curr_instruction_index] + 1;
+        curr_tape_index += final_execution_data[curr_instruction_index] + 1;
         // Make sure to skip the data instr after it's used
         // i++;
         break;
       case '<':
-        curr_tape_index -= execution_data2[curr_instruction_index] + 1;
+        curr_tape_index -= final_execution_data[curr_instruction_index] + 1;
         // i++;
         break;
       case '+':
-        tape[curr_tape_index] += execution_data2[curr_instruction_index] + 1;
+        tape[curr_tape_index] +=
+            final_execution_data[curr_instruction_index] + 1;
         // i++;
         break;
       case '-':
-        tape[curr_tape_index] -= execution_data2[curr_instruction_index] + 1;
+        tape[curr_tape_index] -=
+            final_execution_data[curr_instruction_index] + 1;
         // i++;
         break;
       case ',': {
@@ -435,14 +444,14 @@ void Interpreter::execute() {
       }
       case '[': {
         if (tape[curr_tape_index] == 0) {
-          curr_instruction_index = execution_data2[curr_instruction_index];
+          curr_instruction_index = final_execution_data[curr_instruction_index];
           curr_instruction_index--;  // Avoid instruction increment
         }
         break;
       }
       case ']': {
         if (tape[curr_tape_index] > 0) {
-          curr_instruction_index = execution_data2[curr_instruction_index];
+          curr_instruction_index = final_execution_data[curr_instruction_index];
           curr_instruction_index--;  // Avoid instruction increment
         }
         break;

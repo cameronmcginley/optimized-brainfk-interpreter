@@ -10,16 +10,14 @@ class Interpreter {
   std::vector<char> tape;
   int curr_tape_index;
 
-  std::string execution_str;
-  std::vector<int> execution_data;
+  std::string temp_execution_string;
+  std::vector<int> temp_execution_data;
 
-  std::string execution_string2 = "";
-  std::vector<int> execution_data2;
-
+  std::string final_execution_string = "";
+  std::vector<int> final_execution_data;
   int curr_instruction_index;
 
   bool debug = false;
-
   std::string debug_store_output = "";
 
  public:
@@ -27,14 +25,14 @@ class Interpreter {
 
   // Log overloaded for different scenarios
   // String
-  void log(std::string log_str);
+  void debug_log(std::string log_str);
   // All instruction data
-  void log(int instr_num, char instr, int instr_data, int cell_num,
-           int cell_data);
+  void debug_log(int instr_num, char instr, int instr_data, int cell_num,
+                 int cell_data);
   // Vector
-  void log(std::vector<int> log_vec);
+  void debug_log(std::vector<int> log_vec);
   // Instruction string with data vector
-  void log(std::string log_str, std::vector<int> log_vec);
+  void debug_log(std::string log_str, std::vector<int> log_vec);
 
   // Takes in a filepath, returns it as a string
   std::string read_bf_file(std::string filename);
